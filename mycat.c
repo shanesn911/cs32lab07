@@ -64,6 +64,7 @@ static int cat_file(const char *path) {
     }
     close(fd);
     return result;
+}
 
 int main(int argc, char *argv[]) {
     // No file names: copy standard input (fd 0) to standard output (fd 1)
