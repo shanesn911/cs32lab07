@@ -1,0 +1,3 @@
+Hello from lab07!
+This file has three lines.
+The last one ends with a newline.
