@@ -51,7 +51,36 @@
  */
 __attribute__((unused))
 static pid_t start_command(char *argv[], int *read_fd) {
-    return -1;
+    int pipe_fds[2];
+    if (pipe(pipe_fds) < 0) {
+        perror("pipe");
+        return -1;
+    }
+
+    pid_t pid = fork();
+    if (pid < 0) {
+        perror("fork");
+        close(pipe_fds[0]);
+        close(pipe_fds[1]);
+        return -1;
+    }
+
+    if (pid == 0) {
+        if (dup2(pipe_fds[1], STDOUT_FILENO) < 0) {
+            perror("dup2");
+            exit(1);
+        }
+        close(pipe_fds[0]); // Close original read end
+        close(pipe_fds[1]); // Close original write end
+
+        execvp(argv[0], argv);
+        perror(argv[0]); // If execvp fails
+        exit(127);
+    }
+
+    close(pipe_fds[1]); // Close write end in parent
+    *read_fd = pipe_fds[0]; // Store read end for parent
+    return pid;
 }
 
 /**
@@ -64,7 +93,24 @@ static pid_t start_command(char *argv[], int *read_fd) {
  */
 __attribute__((unused))
 static int count_lines(int fd) {
-    return 0;
+    char buffer[BUFFER_SIZE];
+    ssize_t bytes_read;
+    int line_count = 0;
+
+    while ((bytes_read = read(fd, buffer, BUFFER_SIZE)) > 0) {
+        for (ssize_t i = 0; i < bytes_read; i++) {
+            if (buffer[i] == '\n') {
+                line_count++;
+            }
+        }
+    }
+
+    if (bytes_read < 0) {
+        perror("read");
+        return -1;
+    }
+
+    return line_count;
 }
 
 int main(int argc, char *argv[]) {
@@ -72,6 +118,7 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Usage: countlines COMMAND [ARG]...\n");
         return 1;
     }
+
 
     // Start the command, count the lines it prints, wait for it to finish,
     // and print the two lines.
@@ -90,6 +137,31 @@ int main(int argc, char *argv[]) {
     // (for example, whether the child exited normally or was killed by a
     // signal). Use the WEXITSTATUS macro from <sys/wait.h> to get the exit
     // status out of it.
+
+
+    int read_fd;
+    pid_t child_pid = start_command(&argv[1], &read_fd);
+    if (child_pid < 0) {
+        return 1;
+    }
+
+    int line_count = count_lines(read_fd);
+    close(read_fd);
+    if (line_count < 0) {
+        return 1;
+    }
+
+    int status;
+    if (waitpid(child_pid, &status, 0) < 0) {
+        perror("waitpid");
+        return 1;
+    }
+
+    int exit_status = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+    printf("lines: %d\n", line_count);
+    printf("exit status: %d\n", exit_status);
+    
+
 
     return 0;
 }

@@ -25,7 +25,6 @@
  * Returns 0 on success, or -1 if a read or write fails.
  */
 static int copy_fd(int in_fd, int out_fd) {
-    // TODO: the read/write loop from STEP 4 of the writeup
     char buffer[BUFFER_SIZE];
     ssize_t bytes_read;
     while ((bytes_read = read(in_fd, buffer, BUFFER_SIZE)) > 0) {
@@ -51,7 +50,6 @@ static int copy_fd(int in_fd, int out_fd) {
  * Returns 0 on success, or -1 on failure.
  */
 static int cat_file(const char *path) {
-    // TODO: open, copy_fd, close (see STEP 4 of the writeup)
     int fd = open(path, O_RDONLY);
     if (fd < 0) {
         perror(path);
